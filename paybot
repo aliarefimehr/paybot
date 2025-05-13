@@ -1,0 +1,110 @@
+import json
+from telegram import Update
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
+
+# توکن ربات رو از متغیر محیطی بگیر
+import os
+TOKEN = os.getenv("TOKEN")
+
+TEMPLATES_PATH = "template.txt"
+BLOCKED_PATH = "blocked.json"
+
+# خواندن الگوها
+def load_templates():
+    with open(TEMPLATES_PATH, 'r', encoding='utf-8') as f:
+        content = f.read()
+    templates = {}
+    blocks = content.split('#')[1:]
+    for block in blocks:
+        lines = block.strip().split('\n')
+        key = lines[0].strip()
+        value = '\n'.join(lines[1:]).strip()
+        templates[key] = value
+    return templates
+
+# خواندن لیست مسدود
+def load_blocked_users():
+    try:
+        with open(BLOCKED_PATH, 'r') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return []
+
+templates = load_templates()
+blocked_users = load_blocked_users()
+
+# تابع تشخیص بلاک
+def is_blocked(text):
+    text = text.lower()
+    for item in blocked_users:
+        if item.lower() in text:
+            return True
+    return False
+
+# دستور /start
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "سلام! من یک ربات پرداخت و محاسبه هستم.\n"
+        "دستورات:\n"
+        "/calc [عبارت] - برای محاسبه\n"
+        "/block [نام/آیدی] - برای اضافه کردن به بلاک لیست\n"
+        "/about - درباره ربات"
+    )
+
+# دستور /calc
+async def calc(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        expr = " ".join(context.args)
+        result = eval(expr)
+
+        name = "علی عارفی مهر"
+        person_id = "1001"
+        iban = "60ZZZ12345678901234567890"
+
+        full_iban = "IR" + iban
+
+        if is_blocked(full_iban) or is_blocked(name):
+            await update.message.reply_text("⚠️ این کاربر در لیست مسدودی است.")
+            return
+
+        output = templates.get("shaparak_melli", "").format(
+            name=name,
+            amount=result,
+            person_id=person_id,
+            iban=iban
+        )
+
+        await update.message.reply_text(output)
+
+    except Exception as e:
+        await update.message.reply_text(f"❌ خطایی رخ داد: {e}")
+
+# دستور /block
+async def block(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not context.args:
+        await update.message.reply_text("لطفاً یک نام کاربری یا شبا وارد کنید.")
+        return
+    user = " ".join(context.args)
+    blocked_users.append(user)
+    with open(BLOCKED_PATH, "w") as f:
+        json.dump(blocked_users, f)
+    await update.message.reply_text(f"✅ {user} به لیست مسدود اضافه شد.")
+
+# دستور /about
+async def about(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "این ربات توسط [نام تو] طراحی شده.\n"
+        "برای خرید/اجاره ربات: @username_tu\n"
+        "نسخه: 1.0"
+    )
+
+# راه‌اندازی ربات
+app = ApplicationBuilder().token(TOKEN).build()
+
+app.add_handler(CommandHandler("start", start))
+app.add_handler(CommandHandler("calc", calc))
+app.add_handler(CommandHandler("block", block))
+app.add_handler(CommandHandler("about", about))
+
+print("ربات در حال اجرا...")
+app.run_polling()
