@@ -1,0 +1,11 @@
+#shaparak_melli
+نام و نام خانوادگی: علی عارفی مهر
+مبلغ: {amount}
+شماره نفر: {person_id}
+شماره شبا: IR{iban}
+
+#shaparak_saman
+نام مشتری: {name}
+مبلغ قابل پرداخت: {amount}
+شماره مشتری: {person_id}
+شماره کارت: {card_number}
